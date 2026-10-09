@@ -1,0 +1,49 @@
+name: Build and Release Extension
+
+on:
+  push:
+    tags:
+      - 'v*' # Dispara quando você envia uma tag começando com "v" (ex: v1.0.0, v1.0.1)
+  workflow_dispatch: # Permite disparar manualmente pela interface do GitHub se desejar
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Baixa o código do repositório
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # 2. Obtém o nome da versão a partir da tag ou do manifest.json
+      - name: Extract version
+        id: get_version
+        run: |
+          if [ -n "${{ github.ref_name }}" ]; then
+            echo "VERSION=${{ github.ref_name }}" >> $GITHUB_OUTPUT
+          else
+            echo "VERSION=v$(jq -r .version manifest.json)" >> $GITHUB_OUTPUT
+          fi
+
+      # 3. Compacta apenas os arquivos necessários da extensão
+      - name: Package extension into ZIP
+        run: |
+          ZIP_NAME="${{ github.event.repository.name }}-${{ steps.get_version.outputs.VERSION }}.zip"
+          zip -r "$ZIP_NAME" manifest.json icons/ src/ README.md LICENSE -x "*.git*"
+          echo "ZIP_FILE=$ZIP_NAME" >> $GITHUB_OUTPUT
+        id: package
+
+      # 4. Cria a Release no GitHub e anexa o arquivo ZIP
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ steps.package.outputs.ZIP_FILE }}
+          name: Release ${{ steps.get_version.outputs.VERSION }}
+          generate_release_notes: true # Gera automaticamente a lista de commits da versão
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
