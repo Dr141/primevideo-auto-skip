@@ -144,8 +144,81 @@
     return isVideoUrl && hasPlayingVideo;
   }
 
+  // Obtém o elemento de vídeo ativo na reprodução principal
+  function getActiveVideo() {
+    const videos = Array.from(document.querySelectorAll('video'));
+    if (videos.length === 0) return null;
+
+    // 1. Prioriza o vídeo que está tocando ativamente no momento
+    for (const v of videos) {
+      if (v.duration && isFinite(v.duration) && v.duration > 30) {
+        if (!v.paused && v.currentTime > 0) {
+          return v;
+        }
+      }
+    }
+
+    // 2. Procura vídeos com duração real de episódio ou filme (> 120s)
+    for (const v of videos) {
+      if (v.duration && isFinite(v.duration) && v.duration > 120) {
+        if (v.currentTime > 0 || v.readyState >= 2) {
+          return v;
+        }
+      }
+    }
+
+    // 3. Fallback: qualquer vídeo com duração válida (> 30s)
+    for (const v of videos) {
+      if (v.duration && isFinite(v.duration) && v.duration > 30) {
+        return v;
+      }
+    }
+
+    return videos[0] || null;
+  }
+
+  // Verifica se o vídeo está comprovadamente nos momentos finais (créditos)
+  function isVideoNearEnd() {
+    const video = getActiveVideo();
+    if (!video) return false;
+
+    // Se o vídeo já terminou completamente
+    if (video.ended) return true;
+
+    const duration = video.duration;
+    const currentTime = video.currentTime;
+
+    // Se não há duração finita válida, não avança por precaução
+    if (!duration || !isFinite(duration) || duration <= 0) return false;
+
+    // Trava de segurança temporal essencial:
+    // 1. O vídeo precisa ter reproduzido mais de 60 segundos
+    // 2. Ter alcançado pelo menos 80% do progresso total do episódio
+    // 3. Faltar no máximo 240 segundos (4 minutos) para o fim
+    const remaining = duration - currentTime;
+    const progress = currentTime / duration;
+    return currentTime > 60 && progress >= 0.80 && remaining <= 240 && remaining >= 0;
+  }
+
   // Obtém o contêiner do player para buscas restritas
   function getPlayerContainer() {
+    const activeVideo = getActiveVideo();
+    if (activeVideo) {
+      const parentContainer = activeVideo.closest(
+        '.atvwebplayersdk-player-container, ' +
+        '.webPlayerContainer, ' +
+        '.scalingVideoContainer, ' +
+        '.dv-player-fullscreen, ' +
+        '[data-testid="player-container"], ' +
+        '.rendererContainer'
+      );
+      if (parentContainer) return parentContainer;
+
+      if (activeVideo.parentElement && activeVideo.parentElement !== document.body) {
+        return activeVideo.parentElement.parentElement || activeVideo.parentElement;
+      }
+    }
+
     return document.querySelector(
       '.atvwebplayersdk-player-container, ' +
       '.webPlayerContainer, ' +
@@ -383,13 +456,14 @@
     return false;
   }
 
-  // Verifica se o elemento deve ser ignorado para evitar cliques indesejados (ex: curtir, feedback, fechar)
+  // Verifica se o elemento deve ser ignorado para evitar cliques indesejados (ex: curtir, feedback, fechar, carrosséis)
   function isExcludedNextUpElement(el) {
     if (!el) return true;
     const text = (el.textContent || '').trim().toLowerCase();
     const aria = (el.getAttribute('aria-label') || '').trim().toLowerCase();
     const testid = (el.getAttribute('data-testid') || '').trim().toLowerCase();
-    const combined = `${text} ${aria} ${testid}`;
+    const className = (typeof el.className === 'string' ? el.className : '').toLowerCase();
+    const combined = `${text} ${aria} ${testid} ${className}`;
 
     return (
       combined.includes('curtir') ||
@@ -409,7 +483,15 @@
       combined.includes('audio') ||
       combined.includes('configurações') ||
       combined.includes('configuracoes') ||
-      combined.includes('settings')
+      combined.includes('settings') ||
+      combined.includes('títulos') ||
+      combined.includes('titulos') ||
+      combined.includes('arrow') ||
+      combined.includes('slider') ||
+      combined.includes('volume') ||
+      combined.includes('retroceder') ||
+      combined.includes('avançar 10') ||
+      combined.includes('avancar 10')
     );
   }
 
@@ -459,7 +541,7 @@
     }
 
     // 3. Links, thumbnails com ícones de play ou elementos svg clicáveis
-    const interactives = container.querySelectorAll('a, [class*="play" i], [class*="thumbnail" i], svg');
+    const interactives = container.querySelectorAll('a, [class*="play" i], [class*="thumbnail" i], svg, img');
     for (const item of interactives) {
       if (isElementVisible(item) && !isExcludedNextUpElement(item)) {
         const clickableAncestor = item.closest('a, [role="button"], button');
@@ -482,18 +564,26 @@
   function checkAndNextEpisode() {
     if (!settings.extensionEnabled || !settings.autoNextEpisode || !isPlaybackRoute()) return false;
 
+    // Trava de segurança temporal essencial: NUNCA avançar episódio durante a exibição normal do episódio.
+    // O próximo episódio só pode ser acionado se o vídeo estiver comprovadamente nos créditos finais (<= 4 min restantes).
+    if (!isVideoNearEnd()) return false;
+
     const now = Date.now();
-    if (now - lastNextEpisodeTime < 2500) return false;
+    if (now - lastNextEpisodeTime < 3000) return false;
 
-    const searchScope = document.fullscreenElement || getPlayerContainer() || document.body;
+    // Escopo estritamente restrito ao player ativo (NUNCA document.body para evitar elementos da página de detalhes/catálogo)
+    const searchScope = document.fullscreenElement || getPlayerContainer();
+    if (!searchScope) return false;
 
-    // Método 1: Seletores diretos do botão de próximo episódio no Prime Video
+    // Método 1: Seletores diretos dentro dos contêineres do card "A seguir" / "Next Up"
     const directNextSelectors = [
       '.atvwebplayersdk-nextupcard-button',
       '.atvwebplayersdk-nextupcard-wrapper button',
       '.atvwebplayersdk-nextupcard-wrapper [role="button"]',
+      '.atvwebplayersdk-nextupcard-wrapper a',
       '.atvwebplayersdk-nextupcard-container button',
       '.atvwebplayersdk-nextupcard-container [role="button"]',
+      '.atvwebplayersdk-nextupcard-container a',
       '.atvwebplayersdk-nextupcard-episode button',
       '.atvwebplayersdk-nextupcard-episode [role="button"]',
       '.nextUpCard button',
@@ -507,8 +597,6 @@
       '[data-testid="nextup-card"] [role="button"]',
       '[data-testid*="nextup" i] button',
       '[data-testid*="nextup" i] [role="button"]',
-      '[data-testid*="next-up" i] button',
-      '[data-testid*="next-up" i] [role="button"]',
       '[class*="nextupcard" i] button',
       '[class*="nextupcard" i] [role="button"]',
       '[class*="nextUpCard" i] button',
@@ -518,19 +606,7 @@
       'button[aria-label*="assistir a seguir" i]',
       '[role="button"][aria-label*="assistir a seguir" i]',
       'button[aria-label*="reproduzir a seguir" i]',
-      '[role="button"][aria-label*="reproduzir a seguir" i]',
-      'button[aria-label*="próximo episódio" i]',
-      '[role="button"][aria-label*="próximo episódio" i]',
-      'button[aria-label*="proximo episodio" i]',
-      '[role="button"][aria-label*="proximo episodio" i]',
-      'button[aria-label*="next episode" i]',
-      '[role="button"][aria-label*="next episode" i]',
-      'button[aria-label*="up next" i]',
-      '[role="button"][aria-label*="up next" i]',
-      'button[aria-label*="next up" i]',
-      '[role="button"][aria-label*="next up" i]',
-      'button[aria-label*="watch next" i]',
-      '[role="button"][aria-label*="watch next" i]'
+      '[role="button"][aria-label*="reproduzir a seguir" i]'
     ];
 
     for (const selector of directNextSelectors) {
@@ -596,7 +672,7 @@
           '[class*="nextup" i], ' +
           '[class*="nextUp" i], ' +
           '[class*="card" i]'
-        ) || el.parentElement;
+        ) || el.parentElement?.parentElement || el.parentElement;
 
         if (cardParent) {
           const clickable = findNextUpClickable(cardParent);
