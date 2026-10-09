@@ -1,0 +1,11 @@
+# Arquivos de empacotamento
+*.zip
+
+# Sistema operacional
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# Editor
+.vscode/
+.idea/

@@ -1,0 +1,20 @@
+{
+  "name": "primevideo-auto-skip",
+  "displayName": "Prime Video Auto Skip",
+  "version": "1.0.0",
+  "description": "Extensão para o Google Chrome que pula aberturas, resumos e anúncios automaticamente e oculta o cursor inativo no Prime Video.",
+  "scripts": {
+    "package": "powershell -Command \"Compress-Archive -Path manifest.json, icons, src, README.md -DestinationPath primevideo-auto-skip.zip -Force\""
+  },
+  "keywords": [
+    "chrome-extension",
+    "prime-video",
+    "skip-intro",
+    "skip-recap",
+    "skip-ads",
+    "fullscreen",
+    "hide-cursor"
+  ],
+  "author": "",
+  "license": "MIT"
+}

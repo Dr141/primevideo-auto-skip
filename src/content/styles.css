@@ -1,0 +1,16 @@
+/* ==========================================================================
+   Prime Video Auto Skip Styles
+   Estilos específicos para o player do Prime Video.
+   O escopo .prime-active garante isolamento total de outros sites e páginas.
+   ========================================================================== */
+
+/* Ocultar cursor após 3 segundos de inatividade durante a reprodução */
+:root.prime-active.prime-cursor-hidden,
+:root.prime-active.prime-cursor-hidden * {
+  cursor: none !important;
+}
+
+/* Ajuste sutil de fluidez para controles de tela cheia quando ativos */
+:root.prime-active:fullscreen {
+  background-color: #000000 !important;
+}

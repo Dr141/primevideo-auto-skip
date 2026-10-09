@@ -1,0 +1,244 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Amazon Ember", Helvetica, Arial, sans-serif;
+}
+
+body {
+  width: 320px;
+  background-color: #0b111e;
+  color: #f9f9f9;
+  padding: 16px;
+  user-select: none;
+}
+
+.header {
+  border-bottom: 1px solid rgba(0, 168, 225, 0.2);
+  padding-bottom: 12px;
+  margin-bottom: 12px;
+}
+
+.logo-area {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.icon-badge {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  object-fit: cover;
+  box-shadow: 0 4px 12px rgba(0, 168, 225, 0.4);
+}
+
+.titles h1 {
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.2px;
+}
+
+.titles .subtitle {
+  font-size: 11px;
+  color: #00a8e1;
+  font-weight: 500;
+  transition: color 0.2s;
+}
+
+.titles .subtitle.is-disabled {
+  color: #8c93a8;
+}
+
+/* Master Card */
+.master-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  background: linear-gradient(135deg, rgba(0, 168, 225, 0.18), rgba(0, 200, 255, 0.08));
+  border: 1px solid rgba(0, 168, 225, 0.4);
+  padding: 11px 12px;
+  border-radius: 9px;
+  margin-bottom: 12px;
+  transition: all 0.25s ease;
+}
+
+.master-card.is-off {
+  background: rgba(255, 255, 255, 0.03);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.master-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #ffffff;
+  cursor: pointer;
+}
+
+.content {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  transition: opacity 0.2s, filter 0.2s;
+}
+
+.content.is-disabled {
+  opacity: 0.4;
+  pointer-events: none;
+  filter: grayscale(0.5);
+}
+
+.option-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  background: rgba(255, 255, 255, 0.03);
+  padding: 9px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  transition: background 0.2s;
+}
+
+.option-row:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.option-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.option-info label {
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.option-info .desc {
+  font-size: 11px;
+  color: #8c93a8;
+  line-height: 1.3;
+}
+
+/* Switch styling */
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 38px;
+  height: 22px;
+  flex-shrink: 0;
+}
+
+.switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #1e293b;
+  transition: 0.25s;
+  border-radius: 22px;
+}
+
+.slider:before {
+  position: absolute;
+  content: "";
+  height: 16px;
+  width: 16px;
+  left: 3px;
+  bottom: 3px;
+  background-color: white;
+  transition: 0.25s;
+  border-radius: 50%;
+}
+
+input:checked + .slider {
+  background: linear-gradient(135deg, #0073a8, #00a8e1);
+  box-shadow: 0 0 8px rgba(0, 168, 225, 0.45);
+}
+
+input:checked + .slider:before {
+  transform: translateX(16px);
+}
+
+/* Quick Actions Row */
+.actions-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.btn-action {
+  flex: 1;
+  padding: 7px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.04);
+  color: #cfd6e6;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-action:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+}
+
+.btn-disable:hover {
+  border-color: rgba(255, 82, 82, 0.4);
+  color: #ff5252;
+}
+
+.btn-enable:hover {
+  border-color: rgba(0, 200, 255, 0.4);
+  color: #00c8ff;
+}
+
+/* Footer */
+.footer {
+  margin-top: 14px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.status-indicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: #00c8ff;
+  box-shadow: 0 0 6px #00c8ff;
+  transition: background-color 0.2s, box-shadow 0.2s;
+}
+
+.status-indicator.status-off {
+  background-color: #ff5252;
+  box-shadow: 0 0 6px #ff5252;
+}
+
+.status-indicator.status-partial {
+  background-color: #ffb300;
+  box-shadow: 0 0 6px #ffb300;
+}
+
+.status-text {
+  font-size: 11px;
+  color: #717c99;
+}

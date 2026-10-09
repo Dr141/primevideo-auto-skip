@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Prime Video Auto Skip</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="header">
+    <div class="logo-area">
+      <img class="icon-badge" src="../../icons/icon48.png" alt="Logo Prime Video">
+      <div class="titles">
+        <h1>Prime Video Auto Skip</h1>
+        <span class="subtitle" id="headerSubtitle">Player Otimizado Ativo</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="master-card" id="masterCard">
+    <div class="option-info">
+      <label for="extensionEnabled" class="master-label">Extensão Ativa</label>
+      <span class="desc" id="masterDesc">Desative para pausar todas as funções</span>
+    </div>
+    <label class="switch switch-master">
+      <input type="checkbox" id="extensionEnabled">
+      <span class="slider"></span>
+    </label>
+  </div>
+
+  <div class="content" id="optionsContainer">
+    <div class="option-row">
+      <div class="option-info">
+        <label for="autoSkipIntro">Pular Abertura e Resumo</label>
+        <span class="desc">Clica em "Pular Abertura", "Resumo" e recapitulações</span>
+      </div>
+      <label class="switch">
+        <input type="checkbox" id="autoSkipIntro">
+        <span class="slider"></span>
+      </label>
+    </div>
+
+    <div class="option-row">
+      <div class="option-info">
+        <label for="autoSkipAds">Pular e Acelerar Anúncios</label>
+        <span class="desc">Pula ou acelera propagandas no Prime Video em mudo</span>
+      </div>
+      <label class="switch">
+        <input type="checkbox" id="autoSkipAds">
+        <span class="slider"></span>
+      </label>
+    </div>
+
+    <div class="option-row">
+      <div class="option-info">
+        <label for="hideCursorOnIdle">Ocultar Cursor Inativo (3s)</label>
+        <span class="desc">Oculta o cursor após 3 segundos sem movimento no vídeo</span>
+      </div>
+      <label class="switch">
+        <input type="checkbox" id="hideCursorOnIdle">
+        <span class="slider"></span>
+      </label>
+    </div>
+
+    <div class="option-row">
+      <div class="option-info">
+        <label for="autoNextEpisode">Próximo Episódio Automático</label>
+        <span class="desc">Avança automaticamente ao final do episódio</span>
+      </div>
+      <label class="switch">
+        <input type="checkbox" id="autoNextEpisode">
+        <span class="slider"></span>
+      </label>
+    </div>
+
+    <div class="option-row">
+      <div class="option-info">
+        <label for="enableKeyF">Atalho Tecla "F"</label>
+        <span class="desc">Pressione a tecla F para alternar tela cheia</span>
+      </div>
+      <label class="switch">
+        <input type="checkbox" id="enableKeyF">
+        <span class="slider"></span>
+      </label>
+    </div>
+
+    <div class="option-row">
+      <div class="option-info">
+        <label for="enableDblClick">Duplo Clique no Vídeo</label>
+        <span class="desc">Dois cliques rápidos no vídeo para alternar tela cheia</span>
+      </div>
+      <label class="switch">
+        <input type="checkbox" id="enableDblClick">
+        <span class="slider"></span>
+      </label>
+    </div>
+  </div>
+
+  <div class="actions-row">
+    <button type="button" id="btnDisableAll" class="btn-action btn-disable">Desativar Todas</button>
+    <button type="button" id="btnEnableAll" class="btn-action btn-enable">Ativar Todas</button>
+  </div>
+
+  <div class="footer">
+    <span class="status-indicator" id="statusIndicator"></span>
+    <span class="status-text" id="statusText">Pronto para maratonar séries no Prime</span>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

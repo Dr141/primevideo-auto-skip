@@ -1,0 +1,68 @@
+{
+  "manifest_version": 3,
+  "name": "Prime Video Auto Skip",
+  "version": "1.0.0",
+  "description": "Pula aberturas, resumos e anúncios automaticamente e oculta o cursor inativo no Prime Video.",
+  "permissions": [
+    "storage"
+  ],
+  "host_permissions": [
+    "https://*.primevideo.com/*",
+    "https://primevideo.com/*",
+    "https://*.amazon.com/gp/video/*",
+    "https://*.amazon.com.br/gp/video/*",
+    "https://*.amazon.co.uk/gp/video/*",
+    "https://*.amazon.de/gp/video/*",
+    "https://*.amazon.co.jp/gp/video/*"
+  ],
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://*.primevideo.com/*",
+        "https://primevideo.com/*",
+        "https://*.amazon.com/gp/video/*",
+        "https://*.amazon.com.br/gp/video/*",
+        "https://*.amazon.co.uk/gp/video/*",
+        "https://*.amazon.de/gp/video/*",
+        "https://*.amazon.co.jp/gp/video/*"
+      ],
+      "js": [
+        "src/content/inject.js"
+      ],
+      "world": "MAIN",
+      "run_at": "document_start"
+    },
+    {
+      "matches": [
+        "https://*.primevideo.com/*",
+        "https://primevideo.com/*",
+        "https://*.amazon.com/gp/video/*",
+        "https://*.amazon.com.br/gp/video/*",
+        "https://*.amazon.co.uk/gp/video/*",
+        "https://*.amazon.de/gp/video/*",
+        "https://*.amazon.co.jp/gp/video/*"
+      ],
+      "js": [
+        "src/content/content.js"
+      ],
+      "css": [
+        "src/content/styles.css"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_popup": "src/popup/popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    },
+    "default_title": "Prime Video Auto Skip"
+  }
+}
