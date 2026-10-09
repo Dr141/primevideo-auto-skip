@@ -124,17 +124,24 @@
     const path = window.location.pathname.toLowerCase();
     const isVideoUrl = path.includes('/detail/') || path.includes('/watch/') || path.includes('/gp/video');
 
-    const playerContainer = document.querySelector(
-      '.atvwebplayersdk-player-container, ' +
-      '.webPlayerContainer, ' +
-      '.scalingVideoContainer, ' +
-      '.dv-player-fullscreen, ' +
-      '[data-testid="player-container"], ' +
-      '.rendererContainer'
-    );
-    const video = document.querySelector('video');
+    const playerContainer = getPlayerContainer();
+    const hasVisiblePlayer = playerContainer && playerContainer.clientWidth > 0 && playerContainer.clientHeight > 0;
 
-    return (playerContainer && video) || (isVideoUrl && video);
+    // Verifica elementos de vídeo ativos
+    const videos = document.querySelectorAll('video');
+    let hasPlayingVideo = false;
+    for (const v of videos) {
+      if (v.currentTime > 0 || !v.paused || v.readyState >= 2) {
+        hasPlayingVideo = true;
+        break;
+      }
+    }
+
+    if (hasVisiblePlayer && (hasPlayingVideo || videos.length > 0)) {
+      return true;
+    }
+
+    return isVideoUrl && hasPlayingVideo;
   }
 
   // Obtém o contêiner do player para buscas restritas
@@ -163,7 +170,7 @@
     }
   }
 
-  // Verifica se o elemento está realmente visível e renderizado na tela
+  // Verifica se o elemento está realmente visível e renderizado na tela (com dimensões reais > 0)
   function isElementVisible(el) {
     if (!el) return false;
     try {
@@ -175,11 +182,10 @@
       ) {
         return false;
       }
-      if (el.offsetParent !== null) return true;
       const rect = el.getBoundingClientRect();
       return rect.width > 0 && rect.height > 0;
     } catch (e) {
-      return el.offsetParent !== null;
+      return false;
     }
   }
 
@@ -409,7 +415,12 @@
 
   // Localiza o elemento interativo de reprodução dentro do card de próximo episódio
   function findNextUpClickable(container) {
-    if (!container || isExcludedNextUpElement(container)) return null;
+    if (!container || !isElementVisible(container) || isExcludedNextUpElement(container)) return null;
+
+    const rect = container.getBoundingClientRect();
+    if (rect.width < 40 || rect.height < 40) {
+      return null;
+    }
 
     // 1. Botões diretos com aria-label ou data-testid de próximo / play / a seguir
     const specificBtn = container.querySelector(
@@ -436,11 +447,14 @@
       return specificBtn;
     }
 
-    // 2. Qualquer botão ou role="button" válido dentro do card
+    // 2. Qualquer botão ou role="button" válido com dimensões reais dentro do card
     const buttons = container.querySelectorAll('button, [role="button"]');
     for (const b of buttons) {
       if (isElementVisible(b) && !isExcludedNextUpElement(b)) {
-        return b;
+        const bRect = b.getBoundingClientRect();
+        if (bRect.width >= 15 && bRect.height >= 15) {
+          return b;
+        }
       }
     }
 
@@ -448,12 +462,16 @@
     const interactives = container.querySelectorAll('a, [class*="play" i], [class*="thumbnail" i], svg');
     for (const item of interactives) {
       if (isElementVisible(item) && !isExcludedNextUpElement(item)) {
-        return item.closest('a, [role="button"], button') || item;
+        const clickableAncestor = item.closest('a, [role="button"], button');
+        return clickableAncestor || item;
       }
     }
 
-    // 4. Fallback para o próprio contêiner se for clicável
-    if (isElementVisible(container) && !isExcludedNextUpElement(container)) {
+    // 4. Se o próprio contêiner for semanticamente um botão ou tiver role button
+    if (
+      (container.tagName === 'BUTTON' || container.getAttribute('role') === 'button') &&
+      !isExcludedNextUpElement(container)
+    ) {
       return container;
     }
 
@@ -467,7 +485,7 @@
     const now = Date.now();
     if (now - lastNextEpisodeTime < 2500) return false;
 
-    const searchScope = document.fullscreenElement || getPlayerContainer() || document;
+    const searchScope = document.fullscreenElement || getPlayerContainer() || document.body;
 
     // Método 1: Seletores diretos do botão de próximo episódio no Prime Video
     const directNextSelectors = [
@@ -478,7 +496,6 @@
       '.atvwebplayersdk-nextupcard-container [role="button"]',
       '.atvwebplayersdk-nextupcard-episode button',
       '.atvwebplayersdk-nextupcard-episode [role="button"]',
-      '.atvwebplayersdk-nextupcard-episode',
       '.nextUpCard button',
       '.nextUpCard [role="button"]',
       '[data-testid="next-up-button"]',
@@ -519,14 +536,17 @@
     for (const selector of directNextSelectors) {
       const btn = searchScope.querySelector(selector);
       if (btn && isElementVisible(btn) && !isExcludedNextUpElement(btn)) {
-        lastNextEpisodeTime = now;
-        simulateClick(btn);
-        console.log('[Prime Video Auto Skip] Próximo episódio acionado via seletor direto:', selector);
-        return true;
+        const btnRect = btn.getBoundingClientRect();
+        if (btnRect.width >= 20 && btnRect.height >= 20) {
+          lastNextEpisodeTime = now;
+          simulateClick(btn);
+          console.log('[Prime Video Auto Skip] Próximo episódio acionado via seletor direto:', selector);
+          return true;
+        }
       }
     }
 
-    // Método 2: Detecção de contêineres do card Next Up / A seguir
+    // Método 2: Detecção de contêineres do card Next Up / A seguir (com dimensões reais)
     const nextUpContainers = searchScope.querySelectorAll(
       '.atvwebplayersdk-nextupcard-wrapper, ' +
       '.atvwebplayersdk-nextupcard-container, ' +
@@ -549,21 +569,14 @@
       }
     }
 
-    // Método 3: Detecção baseada no texto visual "A seguir" / "Up Next" (conforme imagem da interface)
-    const overlayHeadings = searchScope.querySelectorAll(
-      '.atvwebplayersdk-overlays-container div, ' +
-      '.atvwebplayersdk-overlays-container span, ' +
-      '.atvwebplayersdk-overlays-container h1, ' +
-      '.atvwebplayersdk-overlays-container h2, ' +
-      '.atvwebplayersdk-overlays-container h3, ' +
-      '.scalingVideoContainer div, ' +
-      '.scalingVideoContainer span, ' +
-      '.rendererContainer div, ' +
-      '.rendererContainer span'
-    );
+    // Método 3: Detecção baseada no texto visual "A seguir" / "Up Next" no player ativo
+    const overlayHeadings = searchScope.querySelectorAll('div, span, h1, h2, h3, p, strong, b');
 
     for (const el of overlayHeadings) {
       if (!isElementVisible(el)) continue;
+      // Evita contêineres complexos com muitos filhos
+      if (el.children.length > 2) continue;
+
       const text = (el.textContent || '').trim().toLowerCase();
       const isNextUpHeading =
         text === 'a seguir' ||
@@ -582,9 +595,8 @@
           '.atvwebplayersdk-nextupcard-container, ' +
           '[class*="nextup" i], ' +
           '[class*="nextUp" i], ' +
-          '[class*="card" i], ' +
-          'div'
-        );
+          '[class*="card" i]'
+        ) || el.parentElement;
 
         if (cardParent) {
           const clickable = findNextUpClickable(cardParent);
