@@ -9,7 +9,7 @@ Extensão para o Google Chrome e Microsoft Edge que aprimora a experiência no *
 - **⏭️ Pular Aberturas e Resumos:** Detecta e clica automaticamente em botões como *"Pular Abertura"*, *"Pular Resumo"*, *"Skip Intro"* e recapitulações assim que aparecem na tela.
 - **🚫 Pular e Acelerar Anúncios:** Clica no botão *"Pular Anúncio"* instantaneamente. Para comerciais sem botão de pular, acelera a reprodução em 16x no modo mudo, terminando o anúncio em poucos segundos sem incomodar.
 - **🖱️ Ocultação Automática do Cursor (3s):** Oculta a seta do mouse após 3 segundos de inatividade durante a reprodução do vídeo e a restaura imediatamente ao mover o mouse.
-- **⏩ Próximo Episódio Automático:** Detecta o card de próximo episódio e inicia a sequência sem você precisar esperar a contagem regressiva.
+- **⏩ Próximo Episódio Automático:** Detecta o card de próximo episódio (*"A seguir"*, *"Up Next"*) com thumbnail e ícone de play e avança imediatamente, sem precisar esperar os créditos finais ou a contagem regressiva.
 - **⌨️ Atalhos de Conveniência:**
   - Pressione a tecla **F** no player para alternar tela cheia.
   - Dê um **duplo clique** no vídeo para entrar ou sair de tela cheia.

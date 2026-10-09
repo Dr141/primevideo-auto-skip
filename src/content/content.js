@@ -163,6 +163,49 @@
     }
   }
 
+  // Verifica se o elemento está realmente visível e renderizado na tela
+  function isElementVisible(el) {
+    if (!el) return false;
+    try {
+      const style = window.getComputedStyle(el);
+      if (
+        style.display === 'none' ||
+        style.visibility === 'hidden' ||
+        parseFloat(style.opacity || '1') === 0
+      ) {
+        return false;
+      }
+      if (el.offsetParent !== null) return true;
+      const rect = el.getBoundingClientRect();
+      return rect.width > 0 && rect.height > 0;
+    } catch (e) {
+      return el.offsetParent !== null;
+    }
+  }
+
+  // Simula clique completo (mouse + pointer) compatível com React e players modernos
+  function simulateClick(element) {
+    if (!element) return false;
+    try {
+      element.focus?.();
+      const eventInit = { bubbles: true, cancelable: true, view: window };
+      element.dispatchEvent(new PointerEvent('pointerdown', eventInit));
+      element.dispatchEvent(new MouseEvent('mousedown', eventInit));
+      element.dispatchEvent(new PointerEvent('pointerup', eventInit));
+      element.dispatchEvent(new MouseEvent('mouseup', eventInit));
+      element.dispatchEvent(new MouseEvent('click', eventInit));
+      element.click?.();
+      return true;
+    } catch (err) {
+      try {
+        element.click?.();
+        return true;
+      } catch (e) {
+        return false;
+      }
+    }
+  }
+
   // 1. Pular ou acelerar anúncios e propagandas
   function checkAndSkipAds() {
     if (!settings.extensionEnabled || !settings.autoSkipAds || !isPlaybackRoute()) {
@@ -190,10 +233,10 @@
 
     for (const selector of adSkipSelectors) {
       const btn = player.querySelector(selector);
-      if (btn && btn.offsetParent !== null) {
+      if (btn && isElementVisible(btn)) {
         if (now - lastSkipAdTime > 1000) {
           lastSkipAdTime = now;
-          btn.click();
+          simulateClick(btn);
           console.log('[Prime Video Auto Skip] Botão de pular anúncio clicado:', selector);
           notifyAdState(false);
           return true;
@@ -274,9 +317,9 @@
 
     for (const selector of introSelectors) {
       const btn = player.querySelector(selector);
-      if (btn && btn.offsetParent !== null) {
+      if (btn && isElementVisible(btn)) {
         lastSkipIntroTime = now;
-        btn.click();
+        simulateClick(btn);
         console.log('[Prime Video Auto Skip] Abertura/Resumo pulada via seletor:', selector);
         return true;
       }
@@ -285,17 +328,20 @@
     // B. Busca restrita a botões dentro do player
     const candidateButtons = player.querySelectorAll('button, [role="button"]');
     for (const btn of candidateButtons) {
-      if (btn.offsetParent === null) continue;
+      if (!isElementVisible(btn)) continue;
 
       const text = (btn.textContent || '').trim().toLowerCase();
       const aria = (btn.getAttribute('aria-label') || '').trim().toLowerCase();
       const combined = `${text} ${aria}`;
 
-      // Evita botões de reprodução ou checkout
+      // Evita botões de reprodução, próximo episódio ou checkout
       if (
         combined.includes('próximo') ||
         combined.includes('proximo') ||
         combined.includes('next episode') ||
+        combined.includes('a seguir') ||
+        combined.includes('up next') ||
+        combined.includes('next up') ||
         combined.includes('comprar') ||
         combined.includes('alugar') ||
         combined.includes('assinar') ||
@@ -322,7 +368,7 @@
 
       if (isIntroOrRecap) {
         lastSkipIntroTime = now;
-        btn.click();
+        simulateClick(btn);
         console.log('[Prime Video Auto Skip] Abertura/Resumo pulada via texto:', text || aria);
         return true;
       }
@@ -331,31 +377,224 @@
     return false;
   }
 
-  // 3. Próximo episódio automático
+  // Verifica se o elemento deve ser ignorado para evitar cliques indesejados (ex: curtir, feedback, fechar)
+  function isExcludedNextUpElement(el) {
+    if (!el) return true;
+    const text = (el.textContent || '').trim().toLowerCase();
+    const aria = (el.getAttribute('aria-label') || '').trim().toLowerCase();
+    const testid = (el.getAttribute('data-testid') || '').trim().toLowerCase();
+    const combined = `${text} ${aria} ${testid}`;
+
+    return (
+      combined.includes('curtir') ||
+      combined.includes('não tenho interesse') ||
+      combined.includes('nao tenho interesse') ||
+      combined.includes('feedback') ||
+      combined.includes('like') ||
+      combined.includes('dislike') ||
+      combined.includes('fechar') ||
+      combined.includes('close') ||
+      combined.includes('voltar') ||
+      combined.includes('back') ||
+      combined.includes('mute') ||
+      combined.includes('legendas') ||
+      combined.includes('subtitles') ||
+      combined.includes('áudio') ||
+      combined.includes('audio') ||
+      combined.includes('configurações') ||
+      combined.includes('configuracoes') ||
+      combined.includes('settings')
+    );
+  }
+
+  // Localiza o elemento interativo de reprodução dentro do card de próximo episódio
+  function findNextUpClickable(container) {
+    if (!container || isExcludedNextUpElement(container)) return null;
+
+    // 1. Botões diretos com aria-label ou data-testid de próximo / play / a seguir
+    const specificBtn = container.querySelector(
+      '.atvwebplayersdk-nextupcard-button, ' +
+      '[data-testid="nextup-button"], ' +
+      '[data-testid="next-up-button"], ' +
+      '[data-testid="nextupcard-play-button"], ' +
+      'button[aria-label*="a seguir" i], ' +
+      'button[aria-label*="assistir" i], ' +
+      'button[aria-label*="reproduzir" i], ' +
+      'button[aria-label*="play" i], ' +
+      'button[aria-label*="próximo" i], ' +
+      'button[aria-label*="proximo" i], ' +
+      'button[aria-label*="next" i], ' +
+      '[role="button"][aria-label*="a seguir" i], ' +
+      '[role="button"][aria-label*="assistir" i], ' +
+      '[role="button"][aria-label*="reproduzir" i], ' +
+      '[role="button"][aria-label*="play" i], ' +
+      '[role="button"][aria-label*="próximo" i], ' +
+      '[role="button"][aria-label*="proximo" i], ' +
+      '[role="button"][aria-label*="next" i]'
+    );
+    if (specificBtn && isElementVisible(specificBtn) && !isExcludedNextUpElement(specificBtn)) {
+      return specificBtn;
+    }
+
+    // 2. Qualquer botão ou role="button" válido dentro do card
+    const buttons = container.querySelectorAll('button, [role="button"]');
+    for (const b of buttons) {
+      if (isElementVisible(b) && !isExcludedNextUpElement(b)) {
+        return b;
+      }
+    }
+
+    // 3. Links, thumbnails com ícones de play ou elementos svg clicáveis
+    const interactives = container.querySelectorAll('a, [class*="play" i], [class*="thumbnail" i], svg');
+    for (const item of interactives) {
+      if (isElementVisible(item) && !isExcludedNextUpElement(item)) {
+        return item.closest('a, [role="button"], button') || item;
+      }
+    }
+
+    // 4. Fallback para o próprio contêiner se for clicável
+    if (isElementVisible(container) && !isExcludedNextUpElement(container)) {
+      return container;
+    }
+
+    return null;
+  }
+
+  // 3. Próximo episódio automático (inclui suporte nativo ao card "A seguir" / "Up Next")
   function checkAndNextEpisode() {
     if (!settings.extensionEnabled || !settings.autoNextEpisode || !isPlaybackRoute()) return false;
 
     const now = Date.now();
     if (now - lastNextEpisodeTime < 2500) return false;
 
-    const player = getPlayerContainer() || document.body;
+    const searchScope = document.fullscreenElement || getPlayerContainer() || document;
 
-    const nextSelectors = [
+    // Método 1: Seletores diretos do botão de próximo episódio no Prime Video
+    const directNextSelectors = [
       '.atvwebplayersdk-nextupcard-button',
+      '.atvwebplayersdk-nextupcard-wrapper button',
+      '.atvwebplayersdk-nextupcard-wrapper [role="button"]',
+      '.atvwebplayersdk-nextupcard-container button',
+      '.atvwebplayersdk-nextupcard-container [role="button"]',
+      '.atvwebplayersdk-nextupcard-episode button',
+      '.atvwebplayersdk-nextupcard-episode [role="button"]',
+      '.atvwebplayersdk-nextupcard-episode',
       '.nextUpCard button',
+      '.nextUpCard [role="button"]',
       '[data-testid="next-up-button"]',
+      '[data-testid="nextup-button"]',
+      '[data-testid="nextupcard-play-button"]',
+      '[data-testid="next-up-card"] button',
+      '[data-testid="next-up-card"] [role="button"]',
+      '[data-testid="nextup-card"] button',
+      '[data-testid="nextup-card"] [role="button"]',
+      '[data-testid*="nextup" i] button',
+      '[data-testid*="nextup" i] [role="button"]',
+      '[data-testid*="next-up" i] button',
+      '[data-testid*="next-up" i] [role="button"]',
+      '[class*="nextupcard" i] button',
+      '[class*="nextupcard" i] [role="button"]',
+      '[class*="nextUpCard" i] button',
+      '[class*="nextUpCard" i] [role="button"]',
+      'button[aria-label*="a seguir" i]',
+      '[role="button"][aria-label*="a seguir" i]',
+      'button[aria-label*="assistir a seguir" i]',
+      '[role="button"][aria-label*="assistir a seguir" i]',
+      'button[aria-label*="reproduzir a seguir" i]',
+      '[role="button"][aria-label*="reproduzir a seguir" i]',
       'button[aria-label*="próximo episódio" i]',
+      '[role="button"][aria-label*="próximo episódio" i]',
       'button[aria-label*="proximo episodio" i]',
-      'button[aria-label*="next episode" i]'
+      '[role="button"][aria-label*="proximo episodio" i]',
+      'button[aria-label*="next episode" i]',
+      '[role="button"][aria-label*="next episode" i]',
+      'button[aria-label*="up next" i]',
+      '[role="button"][aria-label*="up next" i]',
+      'button[aria-label*="next up" i]',
+      '[role="button"][aria-label*="next up" i]',
+      'button[aria-label*="watch next" i]',
+      '[role="button"][aria-label*="watch next" i]'
     ];
 
-    for (const selector of nextSelectors) {
-      const btn = player.querySelector(selector);
-      if (btn && btn.offsetParent !== null) {
+    for (const selector of directNextSelectors) {
+      const btn = searchScope.querySelector(selector);
+      if (btn && isElementVisible(btn) && !isExcludedNextUpElement(btn)) {
         lastNextEpisodeTime = now;
-        btn.click();
-        console.log('[Prime Video Auto Skip] Próximo episódio acionado automaticamente.');
+        simulateClick(btn);
+        console.log('[Prime Video Auto Skip] Próximo episódio acionado via seletor direto:', selector);
         return true;
+      }
+    }
+
+    // Método 2: Detecção de contêineres do card Next Up / A seguir
+    const nextUpContainers = searchScope.querySelectorAll(
+      '.atvwebplayersdk-nextupcard-wrapper, ' +
+      '.atvwebplayersdk-nextupcard-container, ' +
+      '[data-testid*="nextup" i], ' +
+      '[data-testid*="next-up" i], ' +
+      '[class*="nextupcard" i], ' +
+      '[class*="nextUpCard" i], ' +
+      '[class*="next-up" i]'
+    );
+
+    for (const container of nextUpContainers) {
+      if (isElementVisible(container) && !isExcludedNextUpElement(container)) {
+        const target = findNextUpClickable(container);
+        if (target) {
+          lastNextEpisodeTime = now;
+          simulateClick(target);
+          console.log('[Prime Video Auto Skip] Próximo episódio acionado via contêiner Next Up.');
+          return true;
+        }
+      }
+    }
+
+    // Método 3: Detecção baseada no texto visual "A seguir" / "Up Next" (conforme imagem da interface)
+    const overlayHeadings = searchScope.querySelectorAll(
+      '.atvwebplayersdk-overlays-container div, ' +
+      '.atvwebplayersdk-overlays-container span, ' +
+      '.atvwebplayersdk-overlays-container h1, ' +
+      '.atvwebplayersdk-overlays-container h2, ' +
+      '.atvwebplayersdk-overlays-container h3, ' +
+      '.scalingVideoContainer div, ' +
+      '.scalingVideoContainer span, ' +
+      '.rendererContainer div, ' +
+      '.rendererContainer span'
+    );
+
+    for (const el of overlayHeadings) {
+      if (!isElementVisible(el)) continue;
+      const text = (el.textContent || '').trim().toLowerCase();
+      const isNextUpHeading =
+        text === 'a seguir' ||
+        text === 'up next' ||
+        text === 'next up' ||
+        text === 'a continuación' ||
+        text === 'à suivre' ||
+        text === 'als nächstes' ||
+        text.startsWith('a seguir:') ||
+        text.startsWith('up next:') ||
+        text.startsWith('next up:');
+
+      if (isNextUpHeading) {
+        const cardParent = el.closest(
+          '.atvwebplayersdk-nextupcard-wrapper, ' +
+          '.atvwebplayersdk-nextupcard-container, ' +
+          '[class*="nextup" i], ' +
+          '[class*="nextUp" i], ' +
+          '[class*="card" i], ' +
+          'div'
+        );
+
+        if (cardParent) {
+          const clickable = findNextUpClickable(cardParent);
+          if (clickable && clickable !== el) {
+            lastNextEpisodeTime = now;
+            simulateClick(clickable);
+            console.log('[Prime Video Auto Skip] Próximo episódio acionado via detecção de cabeçalho "A seguir":', text);
+            return true;
+          }
+        }
       }
     }
 
