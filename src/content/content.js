@@ -146,7 +146,27 @@
 
   // Obtém o elemento de vídeo ativo na reprodução principal
   function getActiveVideo() {
-    const videos = Array.from(document.querySelectorAll('video'));
+    // 0. Prioridade máxima: vídeo dentro do contêiner mestre do player do Prime Video (#dv-web-player)
+    const dvPlayer = document.getElementById('dv-web-player');
+    if (dvPlayer) {
+      const dvVideos = Array.from(dvPlayer.querySelectorAll('video')).filter(
+        v => !v.closest('.draper-player-container')
+      );
+      for (const v of dvVideos) {
+        if (!v.paused && v.currentTime > 0) return v;
+      }
+      for (const v of dvVideos) {
+        if (v.currentTime > 0 || v.readyState >= 2 || (v.duration && isFinite(v.duration) && v.duration > 30)) {
+          return v;
+        }
+      }
+      if (dvVideos.length > 0) return dvVideos[0];
+    }
+
+    // Filtra todos os vídeos da página excluindo trailers de background (.draper-player-container)
+    const videos = Array.from(document.querySelectorAll('video')).filter(
+      v => !v.closest('.draper-player-container')
+    );
     if (videos.length === 0) return null;
 
     // 1. Prioriza o vídeo que está tocando ativamente no momento
@@ -238,19 +258,40 @@
   function toggleFullscreen() {
     if (document.fullscreenElement) {
       if (document.exitFullscreen) {
-        document.exitFullscreen().catch(() => {});
-      }
-    } else {
-      const container = document.getElementById('dv-web-player') || getPlayerContainer() || document.documentElement;
-      if (container && container.requestFullscreen) {
-        container.requestFullscreen().catch(() => {
-          if (document.documentElement && document.documentElement.requestFullscreen) {
-            document.documentElement.requestFullscreen().catch(() => {});
-          }
+        document.exitFullscreen().catch((err) => {
+          console.warn('[Prime Video Auto Skip] Erro ao sair de tela cheia:', err);
         });
-      } else if (document.documentElement && document.documentElement.requestFullscreen) {
-        document.documentElement.requestFullscreen().catch(() => {});
       }
+      return;
+    }
+
+    // 1. Tenta acionar o botão nativo de tela cheia do Prime Video se presente no DOM
+    const nativeFullscreenBtn = document.querySelector(
+      'button[aria-label*="tela cheia" i], ' +
+      'button[aria-label*="fullscreen" i], ' +
+      'button[data-testid="fullscreen-button"], ' +
+      'button[data-uia="control-fullscreen"]'
+    );
+    if (nativeFullscreenBtn && isElementVisible(nativeFullscreenBtn)) {
+      simulateClick(nativeFullscreenBtn);
+      return;
+    }
+
+    // 2. Aciona requestFullscreen no contêiner mestre (#dv-web-player) ou fallback
+    const container = document.getElementById('dv-web-player') || getPlayerContainer() || document.documentElement;
+    if (container && container.requestFullscreen) {
+      container.requestFullscreen().catch((err) => {
+        console.warn('[Prime Video Auto Skip] container.requestFullscreen rejeitado, tentando documentElement:', err);
+        if (document.documentElement && document.documentElement.requestFullscreen) {
+          document.documentElement.requestFullscreen().catch((docErr) => {
+            console.warn('[Prime Video Auto Skip] documentElement.requestFullscreen falhou:', docErr);
+          });
+        }
+      });
+    } else if (document.documentElement && document.documentElement.requestFullscreen) {
+      document.documentElement.requestFullscreen().catch((err) => {
+        console.warn('[Prime Video Auto Skip] requestFullscreen falhou:', err);
+      });
     }
   }
 

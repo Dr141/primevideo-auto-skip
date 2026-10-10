@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Prime Video Auto Skip",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "Pula aberturas, resumos e anúncios automaticamente e oculta o cursor inativo no Prime Video.",
   "permissions": [
     "storage"
