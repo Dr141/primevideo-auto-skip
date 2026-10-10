@@ -202,15 +202,19 @@
 
   // Obtém o contêiner do player para buscas restritas
   function getPlayerContainer() {
+    const dvPlayer = document.getElementById('dv-web-player');
+    if (dvPlayer) return dvPlayer;
+
     const activeVideo = getActiveVideo();
     if (activeVideo) {
       const parentContainer = activeVideo.closest(
-        '.atvwebplayersdk-player-container, ' +
+        '#dv-web-player, ' +
+        '.dv-player-fullscreen, ' +
         '.webPlayerContainer, ' +
         '.scalingVideoContainer, ' +
-        '.dv-player-fullscreen, ' +
         '[data-testid="player-container"], ' +
-        '.rendererContainer'
+        '.rendererContainer, ' +
+        '.atvwebplayersdk-player-container'
       );
       if (parentContainer) return parentContainer;
 
@@ -220,12 +224,13 @@
     }
 
     return document.querySelector(
-      '.atvwebplayersdk-player-container, ' +
+      '#dv-web-player, ' +
+      '.dv-player-fullscreen, ' +
       '.webPlayerContainer, ' +
       '.scalingVideoContainer, ' +
-      '.dv-player-fullscreen, ' +
       '[data-testid="player-container"], ' +
-      '.rendererContainer'
+      '.rendererContainer, ' +
+      '.atvwebplayersdk-player-container'
     );
   }
 
@@ -236,9 +241,15 @@
         document.exitFullscreen().catch(() => {});
       }
     } else {
-      const container = getPlayerContainer() || document.documentElement;
-      if (container.requestFullscreen) {
-        container.requestFullscreen().catch(() => {});
+      const container = document.getElementById('dv-web-player') || getPlayerContainer() || document.documentElement;
+      if (container && container.requestFullscreen) {
+        container.requestFullscreen().catch(() => {
+          if (document.documentElement && document.documentElement.requestFullscreen) {
+            document.documentElement.requestFullscreen().catch(() => {});
+          }
+        });
+      } else if (document.documentElement && document.documentElement.requestFullscreen) {
+        document.documentElement.requestFullscreen().catch(() => {});
       }
     }
   }
@@ -744,8 +755,13 @@
     const target = event.target;
     const player = getPlayerContainer();
 
-    if (target.tagName === 'VIDEO' || (player && player.contains(target))) {
-      if (target.closest('button') || target.closest('[role="button"]') || target.closest('input')) {
+    const isInsidePlayer =
+      target.tagName === 'VIDEO' ||
+      (player && player.contains(target)) ||
+      Boolean(target.closest('#dv-web-player, .atvwebplayersdk-video-surface, .atvwebplayersdk-player-container, .webPlayerContainer'));
+
+    if (isInsidePlayer) {
+      if (target.closest('button') || target.closest('[role="button"]') || target.closest('input') || target.closest('a')) {
         return;
       }
       event.preventDefault();
