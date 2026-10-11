@@ -151,6 +151,72 @@
     );
   }
 
+  // Obtém o elemento de vídeo ativo da reprodução principal
+  function getActiveVideo() {
+    // 1. Busca primeiro dentro do player principal (#dv-web-player)
+    const dvPlayer = document.getElementById('dv-web-player');
+    if (dvPlayer) {
+      const dvVideos = Array.from(dvPlayer.querySelectorAll('video')).filter(
+        v => !v.closest('.draper-player-container')
+      );
+      for (const v of dvVideos) {
+        if (!v.paused && v.currentTime > 0) return v;
+      }
+      for (const v of dvVideos) {
+        if (v.currentTime > 0 || v.readyState >= 2 || (v.duration && isFinite(v.duration) && v.duration > 30)) {
+          return v;
+        }
+      }
+      if (dvVideos.length > 0) return dvVideos[0];
+    }
+
+    // 2. Busca qualquer vídeo na página excluindo trailers de background
+    const videos = Array.from(document.querySelectorAll('video')).filter(
+      v => !v.closest('.draper-player-container')
+    );
+    if (videos.length === 0) return null;
+
+    for (const v of videos) {
+      if (v.duration && isFinite(v.duration) && v.duration > 30) {
+        if (!v.paused && v.currentTime > 0) return v;
+      }
+    }
+
+    for (const v of videos) {
+      if (v.duration && isFinite(v.duration) && v.duration > 60) {
+        return v;
+      }
+    }
+
+    return videos[0] || null;
+  }
+
+  // Verifica se o vídeo está comprovadamente nos momentos finais (créditos) ou encerrado
+  function isVideoAtEnd() {
+    const video = getActiveVideo();
+    if (!video) return false;
+
+    // Se o vídeo já chegou ao fim
+    if (video.ended) return true;
+
+    const duration = video.duration;
+    const currentTime = video.currentTime;
+
+    // Se a duração não for válida, não avança por segurança
+    if (!duration || !isFinite(duration) || duration <= 60) {
+      return false;
+    }
+
+    // Trava de segurança temporal estrita:
+    // 1. O vídeo precisa ter reproduzido mais de 2 minutos (120s) - NUNCA no início do episódio!
+    // 2. Ter alcançado pelo menos 80% do progresso total (0.80)
+    // 3. Faltar no máximo 4 minutos (240 segundos) para o término
+    const remaining = duration - currentTime;
+    const progress = currentTime / duration;
+
+    return currentTime > 120 && progress >= 0.80 && remaining <= 240 && remaining >= 0;
+  }
+
   // Verifica se um elemento está visível na tela
   function isElementVisible(el) {
     if (!el) return false;
@@ -448,9 +514,16 @@
     return null;
   }
 
-  // 3. Próximo episódio automático (acionado APENAS quando a opção "A seguir" aparecer)
+  // 3. Próximo episódio automático (acionado APENAS ao final do episódio quando a opção "A seguir" aparecer)
   function checkAndNextEpisode() {
     if (!settings.extensionEnabled || !settings.autoNextEpisode || !isPlaybackRoute()) return false;
+
+    // REGRA DE SEGURANÇA MANDATÓRIA:
+    // O próximo episódio NUNCA pode ser acionado no início ou meio da reprodução.
+    // DEVE ser acionado APENAS ao final do episódio (créditos finais ou vídeo encerrado).
+    if (!isVideoAtEnd()) {
+      return false;
+    }
 
     const now = Date.now();
     if (now - lastNextEpisodeTime < 2500) return false;
